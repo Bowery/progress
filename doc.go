@@ -9,7 +9,7 @@
      "log"
      "os"
 
-     "github.com/Bowery/gopackages/progress"
+     "github.com/Bowery/progress"
    )
 
    var (
@@ -20,7 +20,7 @@
      output, _ := os.Create("output.mp4")
      defer output.Close()
 
-     url, _ := url.Parse("http://stevekaliski.com.s3.amazonaws.com/bowery_movie.mp4")
+     url, _ := url.Parse("http://YOUR_URL")
      progChan, errChan := progressClient.Get(url, nil, output)
 
      isDownloaded := false
