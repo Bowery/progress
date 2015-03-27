@@ -8,6 +8,7 @@
    import (
      "log"
      "os"
+     "net/url"
 
      "github.com/Bowery/progress"
    )
