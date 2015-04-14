@@ -5,6 +5,8 @@ package progress_test
 import (
 	"bytes"
 	"os"
+
+	"github.com/Bowery/progress"
 )
 
 func ExampleCopy() {
@@ -20,7 +22,7 @@ func ExampleCopy() {
 	}
 
 	var buf bytes.Buffer
-	progChan, errChan := Copy(&buf, file, stat.Size())
+	progChan, errChan := progress.Copy(&buf, file, stat.Size())
 
 	isCopied := false
 	for !isCopied {
