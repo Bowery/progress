@@ -3,7 +3,7 @@
 
 [![GoDoc](https://godoc.org/github.com/Bowery/progress?status.png)](https://godoc.org/github.com/Bowery/progress)
 
-Progress provides methods for monitoring the progress of long-running http requests. See the godoc for usage and documentation.
+Progress provides methods for monitoring the progress of io operations.
 
 ## License
 
