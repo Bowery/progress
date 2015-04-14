@@ -3,30 +3,8 @@
 package progress
 
 import (
-	"errors"
 	"io"
-	"net/http"
-	"net/url"
 )
-
-var (
-	errContentLengthNotSet = errors.New("Content-Length not set")
-	errStatusNotOK         = errors.New("Status Code non 200")
-)
-
-// Client is a progress client to Get and Put files. It uses
-// the default http.DefaultClient to make requests, however
-// one can be set if non standard options are required.
-type Client struct {
-	HTTPClient *http.Client
-}
-
-// New creates a new Client.
-func New() *Client {
-	return &Client{
-		HTTPClient: http.DefaultClient,
-	}
-}
 
 // transmitter is the monitoring object for a download
 // or upload. It is comprised of the raw progress, as well
@@ -40,8 +18,10 @@ type transmitter struct {
 	errorChan    chan error
 }
 
-func newTransmitter() *transmitter {
+func newTransmitter(dst io.Writer, src io.Reader) *transmitter {
 	return &transmitter{
+		Writer:       dst,
+		Reader:       src,
 		progressChan: make(chan *Status),
 		errorChan:    make(chan error),
 	}
@@ -67,43 +47,13 @@ func (t *transmitter) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// Get downloads the contents from the provided url.
-func (c *Client) Get(url *url.URL, header http.Header, dst io.Writer) (chan *Status, chan error) {
-	t := newTransmitter()
+// Copy tracks progress of copied data from src to dst.
+func Copy(dst io.Writer, src io.Reader, n int64) (chan *Status, chan error) {
+	t := newTransmitter(dst, src)
+	t.total = n
 
 	go func(t *transmitter) {
-		req, err := http.NewRequest("GET", url.String(), nil)
-		if err != nil {
-			t.errorChan <- err
-			return
-		}
-
-		if header != nil {
-			req.Header = header
-		}
-
-		res, err := c.HTTPClient.Do(req)
-		if err != nil {
-			t.errorChan <- err
-			return
-		}
-
-		if res.StatusCode != http.StatusOK {
-			t.errorChan <- errStatusNotOK
-			return
-		}
-
-		if res.ContentLength == -1 {
-			t.errorChan <- errContentLengthNotSet
-			return
-		}
-
-		t.Reader = res.Body
-		t.total = res.ContentLength
-
-		defer res.Body.Close()
-		defer t.closeChannels()
-		_, err = io.Copy(dst, t)
+		_, err := io.Copy(dst, t)
 		if err != nil {
 			t.errorChan <- err
 		}

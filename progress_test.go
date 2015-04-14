@@ -3,42 +3,33 @@
 package progress
 
 import (
-	"fmt"
-	"log"
+	"bytes"
 	"net/http"
-	"net/http/httptest"
-	"net/url"
 	"os"
-	"strings"
 	"testing"
 )
 
-var (
-	testClient = New()
-)
-
-func TestGetSuccessful(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(getHandlerSuccessful))
-	defer server.Close()
-
-	output, err := os.Create("tmp")
+func TestCopyFileSuccess(t *testing.T) {
+	file, err := os.Open("progress_test.go")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	defer output.Close()
-	defer os.Remove("tmp")
+	defer file.Close()
 
-	url, _ := url.Parse(server.URL)
-	progChan, errChan := testClient.Get(url, nil, output)
+	stat, err := file.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	isDownloaded := false
-	for !isDownloaded {
+	var buf bytes.Buffer
+	progChan, errChan := Copy(&buf, file, stat.Size())
+
+	isCopied := false
+	for !isCopied {
 		select {
 		case status := <-progChan:
 			if status.IsFinished() {
-				isDownloaded = true
+				isCopied = true
 				break
 			}
 		case err := <-errChan:
@@ -47,54 +38,26 @@ func TestGetSuccessful(t *testing.T) {
 	}
 }
 
-func getHandlerSuccessful(rw http.ResponseWriter, req *http.Request) {
-	fakeData := strings.Repeat("drake", 1000)
-	rw.Header().Set("Content-Length", "5000")
-	fmt.Fprintf(rw, fakeData)
-}
-
-func TestGetNoContentLength(t *testing.T) {
-	t.Parallel()
-
-	server := httptest.NewServer(http.HandlerFunc(getHandlerNoContentLength))
-	defer server.Close()
-
-	output, err := os.Create("tmp")
+func TestCopyGetRequestSuccess(t *testing.T) {
+	res, err := http.Get("http://bowery.io")
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
-	defer output.Close()
-	defer os.Remove("tmp")
+	defer res.Body.Close()
 
-	url, _ := url.Parse(server.URL)
-	progChan, errChan := testClient.Get(url, nil, output)
+	var buf bytes.Buffer
+	progChan, errChan := Copy(&buf, res.Body, res.ContentLength)
 
-	receivedExpectedError := false
-	isDownloaded := false
-	for !isDownloaded && !receivedExpectedError {
+	isCopied := false
+	for !isCopied {
 		select {
 		case status := <-progChan:
 			if status.IsFinished() {
-				isDownloaded = true
+				isCopied = true
 				break
 			}
 		case err := <-errChan:
-			log.Println(err)
-			if err == errContentLengthNotSet {
-				receivedExpectedError = true
-				break
-			} else {
-				t.Error(err)
-			}
+			t.Error(err)
 		}
 	}
-
-	if !receivedExpectedError {
-		t.Error("failed to end with expected error")
-	}
-}
-
-func getHandlerNoContentLength(rw http.ResponseWriter, req *http.Request) {
-	fakeData := strings.Repeat("j cole", 1000)
-	fmt.Fprintf(rw, fakeData)
 }
