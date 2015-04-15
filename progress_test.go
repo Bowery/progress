@@ -24,13 +24,16 @@ func TestCopyFileSuccess(t *testing.T) {
 	var buf bytes.Buffer
 	progChan, errChan := Copy(&buf, file, stat.Size())
 
-	isCopied := false
-	for !isCopied {
+	for {
 		select {
 		case status := <-progChan:
 			if status.IsFinished() {
-				isCopied = true
-				break
+				// Actual testing occurs here.
+				if int64(buf.Len()) != stat.Size() {
+					t.Error("Copied length does not match file length")
+				}
+
+				return
 			}
 		case err := <-errChan:
 			t.Error(err)
@@ -48,13 +51,16 @@ func TestCopyGetRequestSuccess(t *testing.T) {
 	var buf bytes.Buffer
 	progChan, errChan := Copy(&buf, res.Body, res.ContentLength)
 
-	isCopied := false
-	for !isCopied {
+	for {
 		select {
 		case status := <-progChan:
 			if status.IsFinished() {
-				isCopied = true
-				break
+				// Actual testing occurs here.
+				if int64(buf.Len()) != res.ContentLength {
+					t.Error("Copied length does not match file length")
+				}
+
+				return
 			}
 		case err := <-errChan:
 			t.Error(err)
